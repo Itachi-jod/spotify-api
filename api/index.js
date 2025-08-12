@@ -1,66 +1,33 @@
-const axios = require("axios");
+import fetch from "node-fetch";
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   try {
     const { q } = req.query;
 
     if (!q) {
-      return res.status(400).json({
-        success: false,
-        message: "Missing query param `q`"
-      });
+      return res.status(400).json({ error: "Please provide a search query ?q=" });
     }
 
-    const KAIZ_APIKEY = process.env.KAIZ_APIKEY || "7eac9dce-b646-4ad1-8148-5b58eddaa2cc";
-    const searchUrl = `https://kaiz-apis.gleeze.com/api/spotify-search?q=${encodeURIComponent(q)}&apikey=${KAIZ_APIKEY}`;
+    const API_URL = `https://kaiz-apis.gleeze.com/api/spotify-search?q=${encodeURIComponent(q)}&apikey=7eac9dce-b646-4ad1-8148-5b58eddaa2cc`;
 
-    // Search Spotify
-    const searchResp = await axios.get(searchUrl, { timeout: 15000 });
-    const data = searchResp.data;
+    const response = await fetch(API_URL);
+    const data = await response.json();
 
-    if (!data || !data.success || !data.result || data.result.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "No results found"
-      });
+    if (!data || !data.result || data.result.length === 0) {
+      return res.status(404).json({ error: "No results found" });
     }
 
-    // Get first track
-    const track = data.result[0];
-    if (!track.downloadUrl) {
-      return res.status(502).json({
-        success: false,
-        message: "No audio URL available for this track"
-      });
-    }
-
-    // Fetch audio stream
-    const audioResp = await axios.get(track.downloadUrl, {
-      responseType: "arraybuffer",
-      timeout: 20000
+    // Return the first music result with audio preview link
+    const firstTrack = data.result[0];
+    res.status(200).json({
+      title: firstTrack.title,
+      artist: firstTrack.artist,
+      album: firstTrack.album,
+      spotify_url: firstTrack.url,
+      audio_preview: firstTrack.preview_url || "No preview available"
     });
 
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Cache-Control", "public, max-age=86400, s-maxage=86400");
-    res.setHeader("Content-Type", "audio/mpeg");
-
-    return res.status(200).send(Buffer.from(audioResp.data));
-  } catch (err) {
-    console.error("API error:", err.message || err);
-    if (err.response?.data) {
-      const bodyCt = err.response.headers?.["content-type"];
-      if (bodyCt?.includes("application/json")) {
-        try {
-          return res
-            .status(err.response.status || 502)
-            .json(err.response.data);
-        } catch {}
-      }
-    }
-    return res.status(500).json({
-      success: false,
-      message: "Failed to process request",
-      error: err.message
-    });
+  } catch (error) {
+    res.status(500).json({ error: "Internal server error", details: error.message });
   }
-};
+}
