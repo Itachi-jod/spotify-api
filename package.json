@@ -1,15 +1,9 @@
 {
-  "name": "spotify-search-api",
+  "name": "spotify-api-gold",
   "version": "1.0.0",
-  "private": true,
   "main": "api/index.js",
-  "scripts": {
-    "start": "node api/index.js"
-  },
+  "type": "module",
   "dependencies": {
-    "axios": "^1.4.0"
-  },
-  "engines": {
-    "node": "18.x"
+    "node-fetch": "^3.3.2"
   }
 }
